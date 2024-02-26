@@ -1,0 +1,5 @@
+test/
+bin/
+paper/
+localcompile.sh
+.DS_Store
