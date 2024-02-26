@@ -4,77 +4,89 @@ import strutils
 import sequtils
 import streams
 import tables
-from os import fileExists, commandLineParams
+from os import fileExists, commandLineParams, extractFilename, changeFileExt, dirExists
 import rsid_liftover/arg_parse
 import rsid_liftover/utils
 
 const 
     VERSION = "0.1"
-    STDCHROMS = concat(map(to_seq(1..22), proc(x: int): string = $x), @["X", "Y"])
-    MAP_RSID_COLIDX = 1
-    MAP_POS_COLIDX = 2
-    HEADER_ID = -99
 
-proc getStream(filename: string): Stream =
-    if filename.len > 0:
-        result = newFileStream(filename, fmWrite)
+proc getStream(outpath: string, in_file_path: string, targer_v: string): Stream =
+    if outpath.len > 0:
+        var fileprefix = extractFilename(in_file_path)
+        fileprefix = changeFileExt(fileprefix, "")
+        var outfile: string
+        if dirExists(outpath):
+            outfile = fmt"{outpath}/{fileprefix}.{targer_v}.tsv"
+        else:
+            outfile = fmt"{outpath}_{fileprefix}.{targer_v}.tsv"
+        result = newFileStream(outfile, fmWrite)
         if isNil(result):
-            raise newException(IOError, "Cannot open file " & filename)
+            raise newException(IOError, "Cannot open file " & outfile)
     else:
         result = newFileStream(stdout)
 
-proc readMap(rsid_file: string): ChromData =
-    var line: string
-    let fileStream = readInputFile(rsid_file)
-    defer: fileStream.close()
+proc loadValueFromBin*(s: SnpLine, filename: string): (string, int) =
+    var
+        #rsids = 0'u32
+        pos = 0'u32
+        placeholder = 0'u32
+    
+    var f = newFileStream(filename, fmRead)
+    if f == nil:
+        raise newException(IOError, "could not open file:" & filename)
 
-    while not fileStream.atEnd:
-        line = fileStream.readLine()
-        if line.startsWith("#"): continue
-        let
-            fields = line.split("\t")
-        
-        result.rsids.add(parseInt(fields[MAP_RSID_COLIDX]))
-        result.pos.add(parseInt(fields[MAP_POS_COLIDX]))
+    # Read chrom string
+    var chrom: uint8 = 0
+    discard f.readData(chrom.addr, sizeof(chrom))
+    var chrom_from_bin = newString(chrom)
+    discard f.readData(chrom_from_bin[0].addr, chrom.int)
+    if s.chrom != chrom_from_bin and s.chrom != "-1":
+        return (s.chrom, -1)
 
-proc loadChromData(map_dir: string, target_build: string, dbsnp_version: string, selected_chroms: seq[string], ignore_binaries: bool = false): Table[string, ChromData] =
-    var chrom_list = selected_chroms
-    if selected_chroms[0] == "-1": chrom_list = STDCHROMS
-    for chrom in chrom_list:
-        var t0 = cpuTime()
-        let
-            rsid_file_tsv = fmt"{map_dir}/{target_build}_dbSNP{dbsnp_version}.chr{chrom}.tsv.gz"
-            rsid_file_bin = fmt"{map_dir}/{target_build}_dbSNP{dbsnp_version}.chr{chrom}.bin"
-        if fileExists(rsid_file_bin) and not ignore_binaries:
-            log("INFO", fmt"Loading chromosome {chrom} data from binary file")
-            result[chrom] = loadChromDataFromFile(rsid_file_bin)
-            if result[chrom].chrom != chrom:
-                log("ERROR", fmt"Chromosome {chrom} data is corrupted")
-                quit "", QuitFailure
-            log("INFO", fmt"Chromosome {chrom} with {result[chrom].rsids.len} elements loaded in {elapsed_time(t0)}")
-            continue
-        log("INFO", fmt"Loading chromosome {chrom} data from TSV file")
-        if not fileExists(rsid_file_tsv):
-            log("ERROR", fmt"File {rsid_file_tsv} does not exist")
-            quit "", QuitFailure
-        var chrom_data = readMap(rsid_file_tsv)
-        
-        chrom_data.chrom = chrom
-        result[chrom] = chrom_data
-        log("INFO", fmt"Chromosome {chrom} loaded in {elapsed_time(t0)}")
+    # Read rsids and pos sequences  
+    #discard f.readData(rsids.addr, rsids.sizeof)
+    discard f.readData(pos.addr, pos.sizeof)
+    #var rsids_from_bin = newSeq[int](rsids)
+    var pos_from_bin = newSeq[int](pos)
+    # if rsids > 0'u32:
+    #     for x in 0..rsids.int-1:
+    #         discard f.readData(
+    #             rsids_from_bin[x].addr, sizeof(placeholder))
+    if pos > 0'u32:
+        for x in 0..pos.int-1:
+            discard f.readData(
+                pos_from_bin[x].addr, sizeof(placeholder))
+    echo fmt"for SNP id {s.id} found pos {pos_from_bin[s.id]} in binary file"
 
-proc liftOver(snp: SnpLine, chrom_data: Table[string, ChromData], selected_chroms: seq[string]): (string, int) =
+    result = (s.chrom, pos_from_bin[s.id])
+
+proc liftOverFromBin(snp: SnpLine, map_dir:string, target_build:string, dbsnp_version: string, selected_chroms: seq[string], chrom_data: var Table[string, ChromData]): (string, int) =
     var chr_to_search = @[snp.chrom]
     if snp.chrom == "-1" and selected_chroms[0] == "-1": chr_to_search = STDCHROMS
     if selected_chroms[0] != "-1": chr_to_search = selected_chroms
     
     for c in chr_to_search:
-        let idx = binarySearch(chrom_data[c].rsids, snp.id)
-        if idx < 0:
-            result = ("-1", -1)
-        else:
-            result = (chrom_data[c].chrom, chrom_data[c].pos[idx])
-            return
+        let file_prefix = fmt"{map_dir}/{target_build}_dbSNP{dbsnp_version}.chr{c}"
+        if not chrom_data.hasKey(c):
+            chrom_data[c] = singleChromData(file_prefix, c)
+
+        result = (c, chrom_data[c].liftover_tab.getOrDefault(snp.id, -1))
+        #result = loadValueFromBin(snp, rsid_file_bin)
+        
+
+# proc liftOver(snp: SnpLine, chrom_data: Table[string, ChromData], selected_chroms: seq[string]): (string, int) =
+#     var chr_to_search = @[snp.chrom]
+#     if snp.chrom == "-1" and selected_chroms[0] == "-1": chr_to_search = STDCHROMS
+#     if selected_chroms[0] != "-1": chr_to_search = selected_chroms
+    
+#     for c in chr_to_search:
+#         let idx = binarySearch(chrom_data[c].rsids, snp.id)
+#         if idx < 0:
+#             result = ("-1", -1)
+#         else:
+#             result = (chrom_data[c].chrom, chrom_data[c].pos[idx])
+#             return
 
 proc main* () =
     log("INFO", fmt"rsID liftOver v{VERSION}")
@@ -100,6 +112,7 @@ proc main* () =
         map_dir = opts.map_dir
         dbsnp_v = opts.version
         header = opts.header
+        skip_missing = opts.no_missing
     
     var chrom = opts.chrom.split(",").map(proc(x: string): string = x.replace("chr", ""))
     if chrom.len > 1 and any(chrom, proc(x: string): bool = x == "-1"):
@@ -109,13 +122,15 @@ proc main* () =
 
     if make_binaries:
         log("INFO", fmt"Making binary files for chromosome data")
-        var chrom_data: Table[string, ChromData]
-        chrom_data = loadChromData(map_dir, target_build, dbsnp_v, chrom, ignore_binaries=true)        
+        var chrom_data: ChromData     
 
-        for c in chrom_data.keys():
-            let bin_file = fmt"{map_dir}/{target_build}_dbSNP{dbsnp_v}.chr{c}.bin"
+        for c in chrom:
+            log("INFO", fmt"Loading chromosome {c} data")
+            let file_prefix = fmt"{map_dir}/{target_build}_dbSNP{dbsnp_v}.chr{c}"
+            let bin_file = fmt"{file_prefix}.bin"
+            chrom_data = singleChromData(file_prefix, c)
             log("INFO", fmt"Saving chromosome {c} data to {bin_file}")
-            saveChromDataToFile(chrom_data[c], bin_file)
+            saveChromDataToFile(chrom_data, bin_file)
         quit "", QuitSuccess
 
     var chrom_colidx = -1
@@ -128,8 +143,6 @@ proc main* () =
     var write_to_file = false
     if out_file != "": write_to_file = true
 
-    var out_stream = getStream(out_file)
-
     #Check if the input file exists
     for f in opts.indf:
         if not fileExists(f):
@@ -139,16 +152,19 @@ proc main* () =
     #If chrom_colidx is -1 load all chromosome data and try to map rsID
     var 
         n: int
+        w: int
         file_t0: float
         t0 = cpuTime()
         interval = 1000
 
     var chrom_data: Table[string, ChromData]
-    chrom_data = loadChromData(map_dir, target_build, dbsnp_v, chrom)
+    #chrom_data = loadChromData(map_dir, target_build, dbsnp_v, chrom)
 
     for in_x in opts.indf:
+        var out_stream = getStream(out_file, in_x, dbsnp_v)
         file_t0 = cpuTime()
         n = 0
+        w = 0
         for s in readInputValues(in_x, sep, rsid_colidx, chrom_colidx, header):
             n += 1
             let (log_step, msg) = progress_counter(n, interval, file_t0)    
@@ -157,10 +173,14 @@ proc main* () =
                 out_stream.writeLine(&"{s.line}\t{header_line}")
                 continue
             let 
-                (target_chrom, target_pos) = liftOver(s, chrom_data, chrom)
+                (target_chrom, target_pos) = liftOverFromBin(s, map_dir, target_build, dbsnp_v, chrom, chrom_data)
+                #(target_chrom, target_pos) = liftOver(s, chrom_data, chrom)
 
+            if target_pos == -1 and skip_missing: continue
             out_stream.writeLine(&"{s.line}\t{target_chrom}\t{target_pos}")
-           
+            w += 1
+        log("INFO", fmt"Processed {n} lines in {in_x}, wrote {w} lines to output")
+
     log("INFO", fmt"Total time: {elapsed_time(t0)}")
 
 when isMainModule:
