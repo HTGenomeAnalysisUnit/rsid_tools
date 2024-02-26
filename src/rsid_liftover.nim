@@ -151,7 +151,8 @@ proc main* () =
         n = 0
         for s in readInputValues(in_x, sep, rsid_colidx, chrom_colidx, header):
             n += 1
-            progress_counter(n, interval, file_t0)
+            let (log_step, msg) = progress_counter(n, interval, file_t0)    
+            if log_step: log("INFO", msg)
             if s.id == HEADER_ID:
                 out_stream.writeLine(&"{s.line}\t{header_line}")
                 continue
