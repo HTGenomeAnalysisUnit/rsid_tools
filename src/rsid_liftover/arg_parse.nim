@@ -8,6 +8,7 @@ var p = newParser("rsID_liftover"):
     option("-o", "--out", help="Output folder or prefix. If prefix the output file(s) names is: {out}_{infileprefix}.{target}.tsv. If not provided output to stdout")
     flag("-e", "--header", help="Input file has header")
     option("-s", "--sep", help="Delimiter for input file", default = some("\t"))
+    option("-m", "--mode", help="Mode of running", default = some("liftover"), choices = @["liftover", "rsid"])
     option("-r", "--rsid_column", help="0-based index of column containing rsIDs in the input", default = some("0"))
     option("-x", "--chrom_column", help="0-based index of column containing chromosome in the input", default = some("1"))
     option("-c", "--chrom", help="Only read data for specific chromosomes. Comma-sep list accepted or -1 for all chromosomes", default = some("-1"))
@@ -39,3 +40,4 @@ proc logArgs*(opts: ref) {.discardable.} =
     log("ARG", fmt"Target build: {opts.target}")
     log("ARG", fmt"Map folder: {opts.map_dir}")
     log("ARG", fmt"dbSNP version: {opts.version}")
+    log("ARG", fmt"Mode: {opts.mode}")
