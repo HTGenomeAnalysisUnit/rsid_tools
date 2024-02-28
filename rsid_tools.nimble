@@ -6,7 +6,7 @@ description   = "Fast liftover of SNPs based on rsID"
 license       = "MIT"
 srcDir        = "src"
 binDir        = "bin"
-bin           = @["rsid_liftover"]
+bin           = @["rsid_tools"]
 skipDirs      = @["test"]
 
 
