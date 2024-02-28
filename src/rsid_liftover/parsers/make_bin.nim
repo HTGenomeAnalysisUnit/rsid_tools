@@ -5,13 +5,6 @@ import ../constants
 
 var p = newParser("make_bin"):
     help("make_bin: generate bin file for a dbSNP variant table")
-    # command "rsid":
-    #     arg("rsids", nargs = -1, help="rsIDs to get information about")
-    #     # option("-o", "--out", help="Output folder or prefix. If prefix the output file(s) names is: {out}_{infileprefix}.tsv. If not provided output to stdout")
-    #     # flag("-e", "--header", help="Input file has header")
-    #     # option("-s", "--sep", help="Delimiter for input file", default = some("\t"))
-    #     # option("-m", "--mode", help="Mode of running", default = some("liftover"), choices = @["liftover", "rsid"])
-    #     # option("-v", "--version", help="dbSNP version", default = some("151"))
     arg("intables", nargs = -1, help="dbSNP tables to convert to binary")
     option("-b", "--build", help="Genome build", required = true, choices = @["GRCh37", "GRCh38"])
     option("-v", "--dbsnp_version", help="dbSNP version", required = true)

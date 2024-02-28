@@ -5,7 +5,7 @@ import strformat
 from ./rsid_liftover/utils import log
 from ./rsid_liftover/constants import VERSION
 import ./rsid_liftover/rsid2pos
-# import ./rsid_liftover/var2rsid
+import ./rsid_liftover/hash2rsid
 import ./rsid_liftover/make_bin
 
 proc main*() =
@@ -14,8 +14,8 @@ proc main*() =
     description: string
 
   var dispatcher = {
-    "liftover": pair(f:rsid2pos.main, description:"get variant coordinates based on rsIDs"),
-    # "annotate": pair(f:var2rsid.main, description:"annotate rsIDs for a list of variants"),
+    "rsid2pos": pair(f:rsid2pos.main, description:"get variant coordinates based on rsIDs"),
+    "annotate": pair(f:hash2rsid.main, description:"annotate rsIDs for a list of variants"),
     "make_bin": pair(f:make_bin.main, description:"generate binaries files from a dbSNP table")
     }.toOrderedTable
 

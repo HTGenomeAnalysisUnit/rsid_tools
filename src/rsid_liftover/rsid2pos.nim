@@ -1,15 +1,12 @@
 import times
 import strformat
 import strutils
-import sequtils
 import streams
 import tables
-import os
 import ./parsers/rsid2pos
 import ./utils
 import ./snp_data
 import std/hashes
-import ./constants
 
 iterator readInputValues(filename: string, sep: string, rsid_idx: int, chrom_idx: int, header: bool = false): SnpLine =
     var
@@ -68,17 +65,6 @@ proc liftOverFromBin(snp: SnpLine, map_dir:string, target_build:string, selected
             return (chrom_data[c].dbsnp, c, snp_pos)
     return (-1, "-1", -1)
 
-# proc getRsIdFromBin(snp: SnpLine, map_dir:string, target_build:string, dbsnp_version: string, selected_chroms: seq[string], allele_data: var Table[string, AlleleData]): int =
-#     var chr_to_search = @[snp.chrom]
-#     if snp.chrom == "-1" and selected_chroms[0] == "-1": chr_to_search = STDCHROMS
-#     if selected_chroms[0] != "-1": chr_to_search = selected_chroms
-#     let key_hash = hash(fmt"{snp.pos}{snp.ref_a}_{snp.alt_a}")
-#     for c in chr_to_search:
-#         let file_prefix = fmt"{map_dir}/{target_build}_dbSNP{dbsnp_version}.chr{c}"
-#         if not allele_data.hasKey(c):
-#             allele_data[c] = singleAlleleData(file_prefix, c)
-#         result = allele_data[c].alleles_tab.getOrDefault(key_hash, -1)
-
 proc main* (argv: seq[string]) =    
     var opts = parseCmdLine(argv)
 
@@ -92,25 +78,13 @@ proc main* (argv: seq[string]) =
         header = opts.header
         skip_missing = opts.no_missing
         tool_prefix = fmt"rsid2pos_{target_build}"
+        input_files = opts.intables
 
-    var selected_chroms = opts.chrom.split(",").map(proc(x: string): string = x.replace("chr", ""))
-    if selected_chroms.len > 1 and any(selected_chroms, proc(x: string): bool = x == "-1"):
-        log("ERROR", "Cannot mix -1 with other chromosomes")
-        quit "", QuitFailure
-    if selected_chroms[0] == "-1": selected_chroms = STDCHROMS
-    log("INFO", fmt"Selected chromosomes: {selected_chroms}")
+    # Performs initial checks and return list of selected chromosomes
+    let selected_chroms = initialChecks(opts.chrom, input_files) 
 
     #Set header for output
     var header_line = &"rsid2pos_dbSNPv\trsid2pos_chrom_{target_build}\trsid2pos_pos_{target_build}"
-
-    #Check if the input file exists
-    if opts.intables.len == 0:
-        log("ERROR", "No input files provided")
-        quit "", QuitFailure
-    for f in opts.intables:
-        if not fileExists(f):
-            log("ERROR", fmt"Input file '{f}' does not exist")
-            quit "", QuitFailure
 
     var 
         n: int
@@ -141,11 +115,6 @@ proc main* (argv: seq[string]) =
             if target_pos == -1 and skip_missing: continue
             out_stream.writeLine(&"{s.line}\t{dbsnp_v}\t{target_chrom}\t{target_pos}")
             w += 1
-            # else:
-            #     let target_rsid = getRsIdFromBin(s, map_dir, target_build, dbsnp_v, chrom, allele_data)
-            #     if target_rsid == -1 and skip_missing: continue
-            #     out_stream.writeLine(&"{s.line}\t{target_rsid}")
-            #(target_chrom, target_pos) = liftOver(s, chrom_data, chrom)
         close(out_stream)
         log("INFO", fmt"Processed {n} lines in {df}, wrote {w} lines to output")
 

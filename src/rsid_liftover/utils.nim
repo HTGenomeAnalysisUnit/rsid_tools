@@ -1,11 +1,13 @@
 import times
 import strutils
+import sequtils
 import strformat
 import system
 import math
 import streams
 import zip/gzipfiles
 import os
+from ./constants import STDCHROMS
 
 type SnpLine* = tuple
     id: int
@@ -65,38 +67,19 @@ proc readInputFile*(filename: string): Stream =
     if filename.endsWith(".gz"):
         result = newGzFileStream(filename, fmRead)
 
-# iterator readInputValues*(filename: string, separator: string, rsid_idx: int, chrom_idx: int, pos_idx: int = POS_COLIDX, alt_idx: int = ALT_COLIDX, ref_idx: int = REF_COLIDX, header: bool = false): SnpLine =
-#     var
-#         fileStream: Stream
-#         snp_data: SnpLine
-#         is_header_line = header
-
-#     fileStream = readInputFile(filename)
-#     defer: close(fileStream)
-
-#     if fileStream == nil:
-#         raise newException(IOError, "Cannot open file " & filename)
+proc initialChecks*(chromosomes: string, input_files: seq[string]): seq[string] =
+    #Check if the input file exists
+    if input_files.len == 0:
+        log("ERROR", "No input files provided")
+        quit "", QuitFailure
+    for f in input_files:
+        if not fileExists(f):
+            log("ERROR", fmt"Input file '{f}' does not exist")
+            quit "", QuitFailure
     
-#     var line: string
-#     while not fileStream.atEnd:
-#         line = fileStream.readLine()
-#         if is_header_line:
-#             is_header_line = false
-#             snp_data.line = line
-#             snp_data.id = -9
-#             snp_data.chrom = "-1"
-#         else: 
-#             let fields = line.split(separator)
-#             snp_data.line = line
-#             snp_data.id = parseInt(fields[rsid_idx].replace("rs", ""))
-#             snp_data.chrom = "-1"
-#             if chrom_idx != -1 and fields.len > 1:
-#                 snp_data.chrom = fields[chrom_idx].replace("chr", "")
-#             if pos_idx != -1 and fields.len > 1:
-#                 snp_data.pos = parseInt(fields[pos_idx])
-#             if alt_idx != -1 and fields.len > 1:
-#                 snp_data.alt_a = fields[alt_idx]
-#             if ref_idx != -1 and fields.len > 1:
-#                 snp_data.ref_a = fields[ref_idx]
-            
-#         yield snp_data
+    result = chromosomes.split(",").map(proc(x: string): string = x.replace("chr", ""))
+    if result.len > 1 and any(result, proc(x: string): bool = x == "-1"):
+        log("ERROR", "Cannot mix -1 with other chromosomes")
+        quit "", QuitFailure
+    if result[0] == "-1": result = STDCHROMS
+    log("INFO", fmt"Selected chromosomes: {result}")
