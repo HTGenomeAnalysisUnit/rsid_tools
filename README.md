@@ -15,18 +15,24 @@ You can just use the binary file of the release, it should work out of the box i
 nimble build -d:release rsid_tools.nimble
 ```
 
+## Known limitations
+
+Variants are represented internally by an hash made from `{POS}{REF}_{ALT}`. At the moment this string cannot be longer than 255 characters. Thus, there is a small fraction of dbSNP variants (about 100) represented by very long indels that can not be stored and thus will be missed by the utilities.
+
 ## Usage
 
 The utilities uses binary representation of variants to perform conversions. These binary files are generated using the `make_bin` command (see [Make the binary section](#make-the-binary-files)).
 
-Output is interpreted as a folder/prefix. When out is a directory, the resulting output file names will be `{out}/{tool_prefix}-{fileprefix}.tsv`, otherwise `{out}-{tool_prefix}-{fileprefix}.tsv`. Here `tool_prefix` contains name of the tool and the target genome build, and `fileprefix` is the prefix of the input file (removing extension and .gz if present).
+In general, it is better to run conversion by chromosomes to avoid large memory requirements to read data from all chromosomes, please see [Performance considerations](#performance-considerations) for more details.
+
+Output is interpreted as a folder/prefix. When out is a directory, the resulting output file names will be `{out}/{tool_prefix}-{fileprefix}.tsv`, otherwise `{out}-{tool_prefix}-{fileprefix}.tsv`. Here `tool_prefix` contains name of the tool and the target genome build, and `fileprefix` is the prefix of the input file (removing extension and .gz if present). **NB.** Any folder present in the output path must exist.
 
 For example, for the input file `input.tsv.gz`
 
 - with `--out output` pointing to an existing folder, the output file will be `output/rsid2pos_GRCh37-input.tsv`
 - with `--out output/test`, the output file will be `output/test-rsid2pos_GRCh37-input.tsv`
 
-**NB.** Any folder present in the output path must exist.
+When `--out` is omitted the output is printed to stdout
 
 ### rsid2pos
 
@@ -95,7 +101,7 @@ Options:
 
 ### How chromosome information is loaded
 
-Then chromosome information is present in the input, the tools only load information for the needed chromosome(s). This makes the process faster and more efficient. Chromosome is mandatory for `annotate`, but it is recommended to provide chromosome information also when running to `rsid2pos`. Othwerwise, the tool will load all the binary files, this takes time and memory (up to 32GB for the GRCh38 dbSNP151).
+Then chromosome information is present in the input, the tools only load information for the needed chromosome(s). This makes the process faster and more efficient. Chromosome is mandatory for `annotate`, but it is recommended to provide chromosome information also when running `rsid2pos`. Othwerwise, the tool will load all the binary files, this takes time and memory (up to 64GB for the GRCh38 dbSNP151).
 
 ## Parallelize by chromosome
 
