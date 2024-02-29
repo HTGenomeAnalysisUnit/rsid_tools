@@ -25,8 +25,13 @@ proc main* (argv: seq[string]) =
 
     var t0 = cpuTime()
     log("INFO", fmt"Making binary files for SNP data from {opts.intables.len} input tables...")
+    var processed_chroms: seq[string]
     for df in opts.intables:
-        let (rsid2pos, hash2rsid) = loadFromTsv(df, genome_build, dbsnp_v, rsid_colidx, chrom_colidx, pos_colidx, ref_colidx, alt_colidx)
+        let (mychrom, rsid2pos, hash2rsid) = loadFromTsv(df, genome_build, dbsnp_v, rsid_colidx, chrom_colidx, pos_colidx, ref_colidx, alt_colidx)
+        if mychrom in processed_chroms:
+            log("ERROR", fmt"Chrom {mychrom} already processed in a previous file. Each input file must contain a different chromosome.")
+            continue
+        processed_chroms.add(mychrom)
         rsid2pos.saveToBin(out_dir)
         hash2rsid.saveToBin(out_dir)
 

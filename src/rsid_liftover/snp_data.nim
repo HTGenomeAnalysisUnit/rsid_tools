@@ -88,7 +88,7 @@ proc loadFromBin(c: var ChromData, filename: string) =
         c.tab = res_tab
     log("INFO", fmt"Loaded {tab_len} elements in {elapsed_time(t0)}")
 
-proc loadFromTsv*(filename: string, build: string, dbsnp_v, rsid_colidx, chrom_colidx, pos_colidx, ref_colidx, alt_colidx: int): (ChromData, ChromData) =
+proc loadFromTsv*(filename: string, build: string, dbsnp_v, rsid_colidx, chrom_colidx, pos_colidx, ref_colidx, alt_colidx: int): (string, ChromData, ChromData) =
     log("INFO", fmt"Reading SNP file {filename}")
     var 
         line: string
@@ -143,7 +143,7 @@ proc loadFromTsv*(filename: string, build: string, dbsnp_v, rsid_colidx, chrom_c
     hash_to_rsid.chrom = chrom_value
     log("INFO", fmt"Loaded {rsid_to_pos.tab.len} elements in {elapsed_time(t0)}")
     log("INFO", fmt"Skipped {n_skipped} SNPs in the allele table")
-    return (rsid_to_pos, hash_to_rsid)
+    return (chrom_value, rsid_to_pos, hash_to_rsid)
 
 proc getChromData*(c: var ChromData, data_dir: string, chrom: string, build: string, mode: string) =
     let bin_file = fmt"{data_dir}/{build}_{chrom}.{mode}.bin"
