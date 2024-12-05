@@ -4,7 +4,7 @@ from ../utils import log
 
 var p = newParser("annotate"):
     help("given a list of variants, annotate them with dbSNP rsIDs")
-    arg("intables", nargs = -1, help="dbSNP tables to convert to binary")
+    arg("intables", nargs = -1, help="Tables containing variants to annotate. Can be a list of variant IDs or a table with columns containing variant ID, chromosome, position, ref and alt alleles")
     option("-s", "--sep", help="Column separator", default = some("\t"))
     flag("-e", "--header", help="Input file has header")
     option("-b", "--build", help="Genome build", required = true, choices = @["GRCh37", "GRCh38"])

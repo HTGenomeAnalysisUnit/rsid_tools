@@ -4,6 +4,7 @@ A small set of utilities to work with SNP data and rsIDs. At the moment this inc
 
 - `rsid2pos`: extract genomic coordinate given an rsID (useful for rsID based liftover)
 - `annotate`: annotate variants with the corresponding rsID
+- `make_bin`: convert dbSNP tables to binary representation for faster processing
 
 Using binary encoding of dbSNP files and hashing the processing is super-fast and can perform these operations on a set of 30M variants in 15 minutes or 2-3 minutes if parallelized by chromosome.
 
@@ -70,10 +71,10 @@ The usage is as follows:
 
 ```bash
 Usage:
-  make_bin [options] [intables ...]
+  annotate [options] [intables ...]
 
 Arguments:
-  [intables ...]   dbSNP tables to convert to binary
+  [intables ...]   Tables containing variants to annotate. Can be a list of variant IDs or a table with columns containing variant ID, chromosome, position, ref and alt alleles
 
 Options:
   -h, --help
