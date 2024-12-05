@@ -4,7 +4,7 @@ from ../utils import log
 import ../constants
 
 var p = newParser("liftover"):
-    help("a set of small utilities to work with rsIDs")
+    help("starting from rsID recover genomic coordinate in a specific build")
     arg("intables", nargs = -1, help="input table/list containing rsID to liftover")
     option("-o", "--out", help="Output folder or prefix. Output structure is: rsid2pos_{target_build}-{infileprefix}.tsv. If not provided output to stdout")
     flag("-e", "--header", help="Input file has header")

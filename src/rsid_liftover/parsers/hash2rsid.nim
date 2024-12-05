@@ -2,8 +2,8 @@ import argparse
 import strformat
 from ../utils import log
 
-var p = newParser("make_bin"):
-    help("make_bin: generate bin file for a dbSNP variant table")
+var p = newParser("annotate"):
+    help("given a list of variants, annotate them with dbSNP rsIDs")
     arg("intables", nargs = -1, help="dbSNP tables to convert to binary")
     option("-s", "--sep", help="Column separator", default = some("\t"))
     flag("-e", "--header", help="Input file has header")
