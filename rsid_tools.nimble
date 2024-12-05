@@ -2,7 +2,7 @@
 
 version       = "0.1"
 author        = "edoardo.giacopuzzi"
-description   = "Fast liftover of SNPs based on rsID"
+description   = "Fast retrieve rsID from SNPs or position from rsID"
 license       = "MIT"
 srcDir        = "src"
 binDir        = "bin"
